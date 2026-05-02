@@ -40,7 +40,7 @@ app.post('/api/analyze', async (req, res) => {
     const result = await analyzeProducts(products);
     console.log(`  → Analysis complete`);
 
-    const { products: analyzed, marketGaps } = result;
+    const { products: analyzed, marketGaps, market_summary } = result;
 
     const totalRevenue = analyzed.reduce(
       (sum, p) => sum + (p.estimated_monthly_revenue || 0),
@@ -52,6 +52,7 @@ app.post('/api/analyze', async (req, res) => {
       url,
       products: analyzed,
       marketGaps,
+      market_summary: market_summary || '',
       totalMonthlyRevenue: totalRevenue,
       scrapedAt: new Date().toISOString(),
     });

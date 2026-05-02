@@ -37,6 +37,7 @@ Paste any Amazon Best Sellers URL and instantly get an AI-powered estimate of mo
 | Backend   | Node.js, Express 4                              |
 | Scraping  | ScraperAPI, Axios, Cheerio                      |
 | AI        | Anthropic Claude API (`claude-haiku-4-5`)       |
+| Dev Tools | [Claude Code](https://claude.ai/code) CLI       |
 | Config    | dotenv                                          |
 
 ---

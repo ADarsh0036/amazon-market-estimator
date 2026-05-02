@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Amazon Market Size Estimator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand: #FF9900;
+      --brand-dark: #e68a00;
+      --bg: #f5f7fa;
+      --card: #ffffff;
+      --text: #1a1a2e;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --success: #10b981;
+      --danger: #ef4444;
+      --radius: 12px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    header .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.5px;
+    }
+    header .logo span { color: var(--brand); }
+    header p {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .container { max-width: 960px; margin: 0 auto; }
+
+    /* Search card */
+    .search-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 32px;
+      margin-bottom: 32px;
+    }
+    .search-card label {
+      display: block;
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+    .input-row {
+      display: flex;
+      gap: 12px;
+    }
+    .input-row input {
+      flex: 1;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-row input:focus { border-color: var(--brand); }
+    .input-row input::placeholder { color: #adb5bd; }
+    .btn-analyze {
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 28px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .btn-analyze:hover { background: var(--brand-dark); }
+    .btn-analyze:active { transform: scale(0.98); }
+    .btn-analyze:disabled { background: #d1d5db; cursor: not-allowed; }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .hint a { color: var(--brand); text-decoration: none; }
+
+    /* Loading */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 48px 0;
+    }
+    .loading.active { display: block; }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 4px solid var(--border);
+      border-top-color: var(--brand);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading p { color: var(--muted); font-size: 14px; }
+    .loading .steps { display: flex; justify-content: center; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+    .step {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; color: var(--muted);
+    }
+    .step.done { color: var(--success); }
+    .step.active { color: var(--brand); font-weight: 600; }
+    .step-icon { font-size: 16px; }
+
+    /* Error */
+    .error-box {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      color: var(--danger);
+      font-size: 14px;
+    }
+    .error-box.active { display: flex; align-items: flex-start; gap: 10px; }
+    .error-box .icon { font-size: 18px; flex-shrink: 0; }
+
+    /* Results */
+    .results { display: none; }
+    .results.active { display: block; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      text-align: center;
+    }
+    .stat-card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card .value { font-size: 28px; font-weight: 800; color: var(--text); margin-top: 6px; }
+    .stat-card .value.highlight { color: var(--brand); }
+    .stat-card .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .results-header h2 { font-size: 18px; font-weight: 700; }
+    .results-header .source-url {
+      font-size: 12px;
+      color: var(--muted);
+      background: var(--bg);
+      padding: 4px 10px;
+      border-radius: 20px;
+      max-width: 400px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Table */
+    .table-wrap {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow-x: auto;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      background: #f9fafb;
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #fafbfc; }
+    td { padding: 14px 16px; vertical-align: middle; }
+
+    .rank-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      font-weight: 800;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--muted);
+    }
+    .rank-badge.top3 { background: var(--brand); color: #fff; }
+
+    .product-name { font-weight: 500; line-height: 1.4; max-width: 280px; }
+    .product-name .short { display: block; }
+
+    .price { font-weight: 700; color: var(--text); }
+    .revenue { font-weight: 800; color: var(--brand); }
+    .sales { color: var(--text); }
+
+    .confidence-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .confidence-badge.high { background: #d1fae5; color: #065f46; }
+    .confidence-badge.medium { background: #fef3c7; color: #92400e; }
+    .confidence-badge.low { background: #fee2e2; color: #991b1b; }
+
+    /* Total row */
+    tfoot td {
+      padding: 16px;
+      font-weight: 800;
+      font-size: 15px;
+      border-top: 2px solid var(--border);
+      background: #fffbf0;
+    }
+    tfoot .total-label { color: var(--muted); font-size: 12px; }
+    tfoot .total-value { color: var(--brand); font-size: 20px; }
+
+    /* Stars */
+    .stars { color: var(--brand); font-size: 11px; letter-spacing: 1px; }
+
+    /* Bar chart mini */
+    .bar-wrap { display: flex; align-items: center; gap: 6px; }
+    .bar {
+      height: 6px; border-radius: 3px;
+      background: var(--brand);
+      transition: width 0.5s ease;
+      min-width: 2px;
+    }
+
+    /* Disclaimer */
+    .disclaimer {
+      margin-top: 20px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      padding: 12px;
+      background: var(--card);
+      border-radius: 8px;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .input-row { flex-direction: column; }
+      .stat-card .value { font-size: 22px; }
+      thead th:nth-child(5),
+      td:nth-child(5) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">
+        <span>📦</span>
+        Amazon <span>Market</span> Estimator
+      </div>
+      <p>Paste any Amazon Best Sellers URL to instantly estimate monthly market size</p>
+    </header>
+
+    <!-- Input Card -->
+    <div class="search-card">
+      <label for="url-input">Amazon Best Sellers URL</label>
+      <div class="input-row">
+        <input
+          id="url-input"
+          type="url"
+          placeholder="https://www.amazon.com/Best-Sellers-Health-Personal-Care/zgbs/hpc/"
+          spellcheck="false"
+        />
+        <button class="btn-analyze" id="analyze-btn" onclick="runAnalysis()">
+          Analyze Market
+        </button>
+      </div>
+      <p class="hint">
+        Try: <a href="#" onclick="fillExample(event, 'https://www.amazon.com/Best-Sellers-Health-Personal-Care/zgbs/hpc/')">Health &amp; Personal Care</a> ·
+        <a href="#" onclick="fillExample(event, 'https://www.amazon.com/Best-Sellers-Electronics/zgbs/electronics/')">Electronics</a> ·
+        <a href="#" onclick="fillExample(event, 'https://www.amazon.com/Best-Sellers-Books/zgbs/books/')">Books</a>
+      </p>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>Analyzing market data — this takes about 20–30 seconds</p>
+      <div class="steps">
+        <div class="step active" id="step-scrape">
+          <span class="step-icon">🔍</span> Scraping Amazon page
+        </div>
+        <div class="step" id="step-ai">
+          <span class="step-icon">🤖</span> AI revenue estimation
+        </div>
+        <div class="step" id="step-report">
+          <span class="step-icon">📊</span> Building report
+        </div>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div class="error-box" id="error-box">
+      <span class="icon">⚠️</span>
+      <span id="error-message">Something went wrong.</span>
+    </div>
+
+    <!-- Results -->
+    <div class="results" id="results">
+      <div class="summary-grid">
+        <div class="stat-card">
+          <div class="label">Total Market Size</div>
+          <div class="value highlight" id="total-revenue">—</div>
+          <div class="sub">estimated monthly revenue</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Top 10 Products</div>
+          <div class="value" id="product-count">—</div>
+          <div class="sub">best sellers analyzed</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Avg. Monthly Revenue</div>
+          <div class="value" id="avg-revenue">—</div>
+          <div class="sub">per product in top 10</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Avg. Price</div>
+          <div class="value" id="avg-price">—</div>
+          <div class="sub">across top 10 products</div>
+        </div>
+      </div>
+
+      <div class="results-header">
+        <h2>Product Breakdown</h2>
+        <div class="source-url" id="source-url"></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Product</th>
+              <th>Price</th>
+              <th>Est. Sales/mo</th>
+              <th>Est. Revenue/mo</th>
+              <th>Share</th>
+              <th>Confidence</th>
+            </tr>
+          </thead>
+          <tbody id="product-tbody"></tbody>
+          <tfoot id="product-tfoot"></tfoot>
+        </table>
+      </div>
+
+      <p class="disclaimer">
+        ⚠️ These are AI-generated estimates for research purposes only.
+        Actual sales vary significantly. Do not use for investment decisions.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const BACKEND_URL = 'http://localhost:3000';
+
+    function fmt(n) {
+      if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1) + 'M';
+      if (n >= 1_000) return '$' + (n / 1_000).toFixed(0) + 'K';
+      return '$' + n.toFixed(0);
+    }
+
+    function fmtFull(n) {
+      return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    }
+
+    function fmtNum(n) {
+      return n.toLocaleString('en-US');
+    }
+
+    function stars(rating) {
+      if (!rating) return '<span style="color:#ccc">—</span>';
+      const full = Math.floor(rating);
+      const half = rating - full >= 0.5 ? 1 : 0;
+      const empty = 5 - full - half;
+      return '<span class="stars">' +
+        '★'.repeat(full) +
+        (half ? '½' : '') +
+        '☆'.repeat(empty) +
+        '</span> <span style="font-size:11px;color:#6b7280">' + rating.toFixed(1) + '</span>';
+    }
+
+    function setStep(active) {
+      ['step-scrape', 'step-ai', 'step-report'].forEach((id, i) => {
+        const el = document.getElementById(id);
+        el.className = 'step';
+        if (i < active) el.classList.add('done');
+        else if (i === active) el.classList.add('active');
+      });
+    }
+
+    function fillExample(e, url) {
+      e.preventDefault();
+      document.getElementById('url-input').value = url;
+    }
+
+    async function runAnalysis() {
+      const url = document.getElementById('url-input').value.trim();
+      if (!url) {
+        showError('Please enter an Amazon Best Sellers URL.');
+        return;
+      }
+
+      // Reset UI
+      hideError();
+      hideResults();
+      showLoading();
+
+      const btn = document.getElementById('analyze-btn');
+      btn.disabled = true;
+      btn.textContent = 'Analyzing…';
+
+      setStep(0);
+      const stepTimer = setTimeout(() => setStep(1), 8000);
+      const stepTimer2 = setTimeout(() => setStep(2), 18000);
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+
+        const data = await res.json();
+        clearTimeout(stepTimer);
+        clearTimeout(stepTimer2);
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'Analysis failed. Please try again.');
+        }
+
+        setStep(2);
+        setTimeout(() => renderResults(data), 400);
+      } catch (err) {
+        clearTimeout(stepTimer);
+        clearTimeout(stepTimer2);
+        hideLoading();
+        showError(err.message || 'Could not connect to the backend. Make sure the server is running on port 3000.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Analyze Market';
+      }
+    }
+
+    function renderResults(data) {
+      hideLoading();
+
+      const { products, totalMonthlyRevenue, url } = data;
+      const maxRev = Math.max(...products.map(p => p.estimated_monthly_revenue));
+      const avgRev = totalMonthlyRevenue / products.length;
+      const avgPrice = products.reduce((s, p) => s + (p.price || 0), 0) / products.filter(p => p.price > 0).length;
+
+      document.getElementById('total-revenue').textContent = fmtFull(totalMonthlyRevenue);
+      document.getElementById('product-count').textContent = products.length;
+      document.getElementById('avg-revenue').textContent = fmt(avgRev);
+      document.getElementById('avg-price').textContent = '$' + (avgPrice || 0).toFixed(2);
+      document.getElementById('source-url').textContent = url;
+
+      const tbody = document.getElementById('product-tbody');
+      tbody.innerHTML = '';
+
+      products.forEach(p => {
+        const isTop3 = p.rank <= 3;
+        const barPct = maxRev > 0 ? Math.round((p.estimated_monthly_revenue / maxRev) * 100) : 0;
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><span class="rank-badge ${isTop3 ? 'top3' : ''}">${p.rank}</span></td>
+          <td>
+            <div class="product-name">
+              <span class="short">${escHtml(truncate(p.name, 70))}</span>
+              ${p.rating ? stars(p.rating) : ''}
+              ${p.reviewCount ? '<br><span style="font-size:11px;color:#6b7280">' + fmtNum(p.reviewCount) + ' reviews</span>' : ''}
+            </div>
+          </td>
+          <td class="price">${p.price ? '$' + p.price.toFixed(2) : '<span style="color:#ccc">—</span>'}</td>
+          <td class="sales">${fmtNum(p.estimated_monthly_sales)}</td>
+          <td class="revenue">${fmtFull(p.estimated_monthly_revenue)}</td>
+          <td>
+            <div class="bar-wrap">
+              <div class="bar" style="width:${barPct}px; max-width: 80px;"></div>
+              <span style="font-size:11px;color:#6b7280">${barPct}%</span>
+            </div>
+          </td>
+          <td><span class="confidence-badge ${p.confidence}">${p.confidence}</span></td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      const tfoot = document.getElementById('product-tfoot');
+      tfoot.innerHTML = `
+        <tr>
+          <td colspan="4" class="total-label">TOTAL ESTIMATED MONTHLY MARKET SIZE</td>
+          <td colspan="3" class="total-value">${fmtFull(totalMonthlyRevenue)}</td>
+        </tr>
+      `;
+
+      showResults();
+    }
+
+    function truncate(str, max) {
+      return str && str.length > max ? str.slice(0, max) + '…' : (str || '');
+    }
+
+    function escHtml(str) {
+      const div = document.createElement('div');
+      div.appendChild(document.createTextNode(str));
+      return div.innerHTML;
+    }
+
+    function showLoading() { document.getElementById('loading').classList.add('active'); }
+    function hideLoading() { document.getElementById('loading').classList.remove('active'); }
+    function showResults() { document.getElementById('results').classList.add('active'); }
+    function hideResults() { document.getElementById('results').classList.remove('active'); }
+    function showError(msg) {
+      const box = document.getElementById('error-box');
+      document.getElementById('error-message').textContent = msg;
+      box.classList.add('active');
+    }
+    function hideError() { document.getElementById('error-box').classList.remove('active'); }
+
+    // Allow Enter key to trigger analysis
+    document.getElementById('url-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') runAnalysis();
+    });
+  </script>
+</body>
+</html>

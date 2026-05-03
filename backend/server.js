@@ -33,8 +33,8 @@ app.post('/api/analyze', async (req, res) => {
 
   try {
     console.log(`[${new Date().toISOString()}] Scraping: ${url}`);
-    const products = await scrapeAmazonBestSellers(url);
-    console.log(`  → Found ${products.length} products`);
+    const { products, currency } = await scrapeAmazonBestSellers(url);
+    console.log(`  → Found ${products.length} products (${currency.code})`);
 
     console.log(`[${new Date().toISOString()}] Sending to Claude for analysis...`);
     const result = await analyzeProducts(products);
@@ -50,6 +50,7 @@ app.post('/api/analyze', async (req, res) => {
     res.json({
       success: true,
       url,
+      currency,
       products: analyzed,
       marketGaps,
       market_summary: market_summary || '',

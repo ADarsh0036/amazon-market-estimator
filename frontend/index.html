@@ -301,13 +301,11 @@
       border-bottom: 1px solid var(--border);
       transition: background var(--transition);
     }
-    .heatmap-row:first-child { border-radius: var(--radius) var(--radius) 0 0; }
-    .heatmap-row:last-child  { border-bottom: none; border-radius: 0 0 var(--radius) var(--radius); }
+    .heatmap-row:last-child  { border-bottom: none; }
     .heatmap-row:hover { background: #fafafa; }
     .competition-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
     .heatmap-product-name { flex: 1; font-size: 13px; font-weight: 500; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .heatmap-level { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; flex-shrink: 0; }
-    .heatmap-score { font-size: 12px; color: var(--muted); flex-shrink: 0; min-width: 36px; text-align: right; }
 
     /* ─── Export Tab ─── */
     .export-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
@@ -400,6 +398,30 @@
     .modal-stat-value { font-size: 17px; font-weight: 700; color: var(--text); margin-top: 4px; }
     .modal-insight { font-size: 13px; color: #666; font-style: italic; line-height: 1.6; padding-top: 16px; border-top: 1px solid var(--border); }
 
+    /* ─── Currency Badge ─── */
+    .currency-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 50px; padding: 4px 14px; font-size: 13px;
+      font-weight: 600; color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    /* ─── Tooltip Wide (wrapping) ─── */
+    .tooltip-icon.tooltip-wide:hover::after {
+      white-space: normal; width: 220px; text-align: left;
+    }
+
+    /* ─── Heatmap Container & Header ─── */
+    .heatmap-container { border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+    .heatmap-header-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 16px; background: #fafafa;
+      border-bottom: 1px solid var(--border);
+    }
+    .heatmap-score { font-size: 12px; color: var(--muted); flex-shrink: 0; min-width: 70px; text-align: right; }
+    .difficulty-bar { height: 3px; background: #f0f0f2; border-radius: 2px; margin-top: 3px; width: 40px; margin-left: auto; }
+    .difficulty-fill { height: 100%; border-radius: 2px; }
+
     /* ─── Disclaimer ─── */
     .disclaimer {
       margin-top: 28px; font-size: 12px; color: var(--muted); text-align: center;
@@ -443,6 +465,9 @@
         placeholder="https://www.amazon.com/Best-Sellers-Electronics/zgbs/electronics/"
         spellcheck="false" />
       <button class="btn-analyze" id="analyze-btn" onclick="runAnalysis()">Analyze Market</button>
+    </div>
+    <div id="currency-badge-wrap" style="display:none;text-align:center;margin-top:10px">
+      <span id="currency-badge" class="currency-badge"></span>
     </div>
     <p class="hint">
       Try: <a href="#" onclick="fillExample(event,'https://www.amazon.com/Best-Sellers-Health-Personal-Care/zgbs/hpc/')">Health &amp; Care</a> ·
@@ -562,7 +587,19 @@
             <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div> HIGH</div>
             <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> VERY HIGH</div>
           </div>
-          <div class="heatmap-list" id="heatmap-grid"></div>
+          <div class="heatmap-container">
+            <div class="heatmap-header-row">
+              <span style="width:10px;height:10px;flex-shrink:0"></span>
+              <span style="flex:1;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted)">Product</span>
+              <span style="flex-shrink:0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted)">Competition</span>
+              <span style="flex-shrink:0;min-width:70px;display:flex;align-items:center;justify-content:flex-end;gap:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted)">
+                Entry Difficulty
+                <span class="tooltip-icon tooltip-wide" data-tip="How hard is it to compete? Based on review count relative to other products in this market. 10 = hardest to enter.">ⓘ</span>
+              </span>
+              <span style="flex-shrink:0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted)">Opportunity</span>
+            </div>
+            <div class="heatmap-list" id="heatmap-grid"></div>
+          </div>
         </div>
 
 
@@ -621,15 +658,28 @@
     const BACKEND_URL = 'https://amazon-market-estimator-backend.onrender.com';
     let lastData = null;
     const stepTimers = [];
+    let currencySymbol = '$';
+    let currencyCode = 'USD';
 
     /* ─── Formatting ─── */
     function fmt(n) {
-      if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1) + 'M';
-      if (n >= 1_000)     return '$' + (n / 1_000).toFixed(0) + 'K';
-      return '$' + n.toFixed(0);
+      if (n >= 1_000_000) return currencySymbol + (n / 1_000_000).toFixed(1) + 'M';
+      if (n >= 1_000)     return currencySymbol + (n / 1_000).toFixed(0) + 'K';
+      return currencySymbol + n.toFixed(0);
     }
-    function fmtFull(n) { return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 }); }
+    function fmtFull(n) { return currencySymbol + n.toLocaleString('en-US', { maximumFractionDigits: 0 }); }
     function fmtNum(n)  { return n.toLocaleString('en-US'); }
+    function fmtReviews(n) {
+      if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+      if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
+      return String(n);
+    }
+    function scoreColor(s) {
+      if (s <= 3) return '#22c55e';
+      if (s <= 6) return '#eab308';
+      if (s <= 8) return '#f97316';
+      return '#ef4444';
+    }
     function stars(rating) {
       if (!rating) return '<span style="color:#ccc">—</span>';
       const full = Math.floor(rating), half = rating - full >= 0.5 ? 1 : 0, empty = 5 - full - half;
@@ -709,7 +759,7 @@
             <div class="rank-badge ${isTop3 ? 'top3' : ''}">${p.rank}</div>
             <div class="card-body">
               <div class="card-name">${escHtml(truncate(p.name, 70))}</div>
-              <div class="card-price">${p.price ? '$' + p.price.toFixed(2) : 'N/A'}</div>
+              <div class="card-price">${p.price ? currencySymbol + p.price.toFixed(2) : 'N/A'}</div>
             </div>
             <div class="card-right">
               <span class="card-opp-badge ${cls}">${label}</span>
@@ -732,7 +782,7 @@
       grid.innerHTML = marketGaps.map(g => {
         const priceRange = g.price_range || g.label || '—';
         const avgRev = g.avg_revenue || g.avgRevenue || 0;
-        const avgReviews = g.avg_reviews_per_product || g.avgReviews || 0;
+        const totalReviews = g.total_reviews || g.totalReviews || 0;
         const numProducts = g.num_products || g.count || 0;
         const difficulty = g.entry_difficulty || '—';
         return `
@@ -746,9 +796,10 @@
               <div class="gap-stat">
                 <span class="gap-stat-label">
                   Competition Signal
-                  <span class="tooltip-icon" data-tip="Fewer reviews = less established competition = easier to enter">?</span>
+                  <span class="tooltip-icon" data-tip="Total number of reviews across all products in this price range. Higher = more established competition.">ⓘ</span>
                 </span>
-                <span class="gap-stat-value">${fmtNum(Math.round(avgReviews))} avg reviews</span>
+                <span style="font-size:9px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">Total Reviews in Category</span>
+                <span class="gap-stat-value">${fmtReviews(totalReviews)}</span>
               </div>
               <div class="gap-stat">
                 <span class="gap-stat-label">Products</span>
@@ -781,15 +832,20 @@
       grid.innerHTML = products.map(p => {
         const level = p.competition_level || 'MEDIUM';
         const color = dotColor[level] || '#aaa';
-        const score = p.entry_difficulty_score || p.entry_difficulty || '—';
+        const rawScore = p.entry_difficulty_score || p.entry_difficulty || 0;
+        const score = typeof rawScore === 'number' ? rawScore : parseInt(rawScore) || 0;
         const oppScore = p.opportunity_score || 0;
         const { cls: oppCls, label: oppLabel } = oppBadge(oppScore);
+        const barColor = scoreColor(score);
         return `
           <div class="heatmap-row">
             <span class="competition-dot" style="background:${color}"></span>
             <span class="heatmap-product-name">${escHtml(truncate(p.name, 55))}</span>
             <span class="heatmap-level" style="color:${color}">${level}</span>
-            <span class="heatmap-score">${score}/10</span>
+            <span class="heatmap-score">
+              <span style="display:block;font-weight:700;color:var(--text)">${score}/10</span>
+              <div class="difficulty-bar"><div class="difficulty-fill" style="width:${score * 10}%;background:${barColor}"></div></div>
+            </span>
             <span class="opp-badge ${oppCls}">${oppLabel}</span>
           </div>
         `;
@@ -831,7 +887,7 @@
             ${p.rating ? stars(p.rating) : ''}
             ${p.reviewCount ? `<div class="product-reviews">${fmtNum(p.reviewCount)} reviews</div>` : ''}
           </td>
-          <td class="price">${p.price ? '$' + p.price.toFixed(2) : '<span style="color:#ccc">—</span>'}</td>
+          <td class="price">${p.price ? currencySymbol + p.price.toFixed(2) : '<span style="color:#ccc">—</span>'}</td>
           <td class="sales">${fmtNum(p.estimated_monthly_sales)}</td>
           <td class="revenue">${fmtFull(p.estimated_monthly_revenue)}</td>
           <td>
@@ -860,13 +916,14 @@
       const catMatch = url && url.match(/zgbs\/([^/?#]+)/);
       const cat = catMatch ? catMatch[1].replace(/-/g, '_') : 'market';
       const filename = `amazon-market-${cat}-${new Date().toISOString().slice(0, 10)}.csv`;
-      const headers = ['rank','name','price','est_sales_mo','est_revenue_mo','market_share','confidence','opportunity_score','competition_level','entry_difficulty_score','dominant_brand','recommendation','review_velocity'];
+      const headers = ['rank','name','currency','price','est_sales_mo','est_revenue_mo','market_share','confidence','opportunity_score','competition_level','entry_difficulty_score','dominant_brand','recommendation','review_velocity'];
       const total = products.reduce((s, p) => s + p.estimated_monthly_revenue, 0);
       const rows = products.map(p => {
         const share = total > 0 ? ((p.estimated_monthly_revenue / total) * 100).toFixed(1) : '0';
         return [
           p.rank,
           '"' + (p.name || '').replace(/"/g, '""') + '"',
+          currencyCode,
           p.price || 0, p.estimated_monthly_sales, p.estimated_monthly_revenue,
           share + '%', p.confidence, p.opportunity_score,
           p.competition_level || '', p.entry_difficulty_score || p.entry_difficulty || '',
@@ -894,7 +951,7 @@
       badge.className = 'recommendation-badge ' + (p.recommendation || 'WATCH');
       document.getElementById('modal-rec-reason').textContent = p.recommendation_reason || '';
       document.getElementById('modal-stats-grid').innerHTML = [
-        { label: 'Price', value: p.price ? '$' + p.price.toFixed(2) : 'N/A' },
+        { label: 'Price', value: p.price ? currencySymbol + p.price.toFixed(2) : 'N/A' },
         { label: 'Est. Monthly Sales', value: fmtNum(p.estimated_monthly_sales) + ' units' },
         { label: 'Est. Revenue', value: fmtFull(p.estimated_monthly_revenue) },
         { label: 'Opportunity Score', value: (p.opportunity_score || 0) + ' / 100' },
@@ -904,7 +961,7 @@
         { label: 'Reviews', value: p.reviewCount ? fmtNum(p.reviewCount) : '—' },
       ].map(s => `<div class="modal-stat"><div class="modal-stat-label">${s.label}</div><div class="modal-stat-value">${s.value}</div></div>`).join('');
       document.getElementById('modal-insight').textContent =
-        `"${p.dominant_brand ? p.dominant_brand + ' dominates this slot. ' : ''}${p.review_velocity || ''} product with ${p.competition_level || ''} competition — consider pricing $${p.price ? (p.price * 0.9).toFixed(2) : 'N/A'} to undercut."`;
+        `"${p.dominant_brand ? p.dominant_brand + ' dominates this slot. ' : ''}${p.review_velocity || ''} product with ${p.competition_level || ''} competition — consider pricing ${currencySymbol}${p.price ? (p.price * 0.9).toFixed(2) : 'N/A'} to undercut."`;
       document.getElementById('modal-overlay').classList.add('active');
       document.body.style.overflow = 'hidden';
     }
@@ -970,6 +1027,16 @@
       hideLoading();
       lastData = data;
       const { products, totalMonthlyRevenue, url, marketGaps, market_summary } = data;
+
+      // Set currency symbol for all formatters
+      const currency = data.currency || { symbol: '$', code: 'USD' };
+      currencySymbol = currency.symbol;
+      currencyCode = currency.code;
+      const flagMap = { USD: '🇺🇸', INR: '🇮🇳', GBP: '🇬🇧', EUR: '🇪🇺', JPY: '🇯🇵', CAD: '🇨🇦', AUD: '🇦🇺' };
+      const badgeEl = document.getElementById('currency-badge');
+      const badgeWrap = document.getElementById('currency-badge-wrap');
+      if (badgeEl) { badgeEl.textContent = (flagMap[currency.code] || '🌐') + ' ' + currency.code; badgeWrap.style.display = 'block'; }
+
       const avgRev = totalMonthlyRevenue / products.length;
       const pricedProducts = products.filter(p => p.price > 0);
       const avgPrice = pricedProducts.length > 0 ? pricedProducts.reduce((s, p) => s + p.price, 0) / pricedProducts.length : 0;
@@ -977,7 +1044,7 @@
       document.getElementById('total-revenue').textContent = fmtFull(totalMonthlyRevenue);
       document.getElementById('product-count').textContent = products.length;
       document.getElementById('avg-revenue').textContent = fmt(avgRev);
-      document.getElementById('avg-price').textContent = '$' + avgPrice.toFixed(2);
+      document.getElementById('avg-price').textContent = currencySymbol + avgPrice.toFixed(2);
       document.getElementById('source-url').textContent = url;
 
       products.forEach(p => { if (!p.opportunity_score) p.opportunity_score = calcOpportunityScore(p); });

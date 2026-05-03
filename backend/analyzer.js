@@ -137,14 +137,15 @@ function computeRawGaps(products) {
     .map(b => {
       const count = b.products.length;
       const avgRevenue = b.products.reduce((s, p) => s + p.estimated_monthly_revenue, 0) / count;
-      const avgReviewsPerProduct = b.products.reduce((s, p) => s + (p.reviewCount || 0), 0) / count;
+      const totalReviews = b.products.reduce((s, p) => s + (p.reviewCount || 0), 0);
+      const avgReviewsPerProduct = count > 0 ? totalReviews / count : 0;
 
       let entry_difficulty;
       if (avgReviewsPerProduct < 5000)       entry_difficulty = 'Easy';
       else if (avgReviewsPerProduct <= 50000) entry_difficulty = 'Moderate';
       else                                    entry_difficulty = 'Hard';
 
-      return { label: b.label, count, avgRevenue, avgReviewsPerProduct, entry_difficulty };
+      return { label: b.label, count, avgRevenue, totalReviews, avgReviewsPerProduct, entry_difficulty };
     });
 
   if (stats.length === 0) return [];
@@ -163,7 +164,7 @@ async function getGapInsights(gaps) {
   if (gaps.length === 0) return gaps;
 
   const gapDesc = gaps.map((g, i) =>
-    `Gap ${i + 1}: ${g.label} — ${g.count} product(s), avg monthly revenue $${Math.round(g.avgRevenue).toLocaleString()}, avg reviews per product ${Math.round(g.avgReviewsPerProduct).toLocaleString()}, entry difficulty: ${g.entry_difficulty}`
+    `Gap ${i + 1}: ${g.label} — ${g.count} product(s), avg monthly revenue $${Math.round(g.avgRevenue).toLocaleString()}, total reviews ${g.totalReviews.toLocaleString()}, entry difficulty: ${g.entry_difficulty}`
   ).join('\n');
 
   const message = await client.messages.create({
@@ -189,14 +190,14 @@ async function getGapInsights(gaps) {
   return gaps.map((g, i) => ({
     price_range: g.label,
     avg_revenue: Math.round(g.avgRevenue),
-    avg_reviews_per_product: Math.round(g.avgReviewsPerProduct),
+    total_reviews: g.totalReviews,
     num_products: g.count,
     entry_difficulty: g.entry_difficulty,
     insight: (parsed[i] && parsed[i].insight) || `The ${g.label} range shows solid demand with manageable competition — a good place to start.`,
     // backward-compat aliases
     label: g.label,
     avgRevenue: g.avgRevenue,
-    avgReviews: g.avgReviewsPerProduct,
+    totalReviews: g.totalReviews,
     count: g.count,
   }));
 }

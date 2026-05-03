@@ -3,8 +3,19 @@ const cheerio = require('cheerio');
 
 const SCRAPER_API_URL = 'http://api.scraperapi.com';
 
+function detectCurrency(url) {
+  if (url.includes('amazon.in'))     return { symbol: '₹', code: 'INR' };
+  if (url.includes('amazon.co.uk'))  return { symbol: '£', code: 'GBP' };
+  if (url.includes('amazon.de'))     return { symbol: '€', code: 'EUR' };
+  if (url.includes('amazon.co.jp'))  return { symbol: '¥', code: 'JPY' };
+  if (url.includes('amazon.ca'))     return { symbol: 'CA$', code: 'CAD' };
+  if (url.includes('amazon.com.au')) return { symbol: 'A$', code: 'AUD' };
+  return { symbol: '$', code: 'USD' };
+}
+
 async function scrapeAmazonBestSellers(amazonUrl) {
   const scraperApiKey = process.env.SCRAPER_API_KEY;
+  const currency = detectCurrency(amazonUrl);
 
   if (!scraperApiKey) {
     throw new Error('SCRAPER_API_KEY environment variable is not set.');
@@ -128,7 +139,7 @@ async function scrapeAmazonBestSellers(amazonUrl) {
     );
   }
 
-  return products.slice(0, 10);
+  return { products: products.slice(0, 10), currency };
 }
 
 module.exports = { scrapeAmazonBestSellers };

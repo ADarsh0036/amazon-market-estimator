@@ -76,4 +76,18 @@ app.listen(PORT, () => {
   console.log(`\n✅ Amazon Market Estimator backend running on http://localhost:${PORT}`);
   console.log(`   POST /api/analyze  — analyze a Best Sellers URL`);
   console.log(`   GET  /health       — health check\n`);
+
+  // Self-ping every 14 minutes to prevent Render free tier from sleeping
+  const SELF_URL = process.env.RENDER_EXTERNAL_URL
+    ? `${process.env.RENDER_EXTERNAL_URL}/health`
+    : `http://localhost:${PORT}/health`;
+
+  setInterval(() => {
+    const http = SELF_URL.startsWith('https') ? require('https') : require('http');
+    http.get(SELF_URL, (res) => {
+      console.log(`[self-ping] ${new Date().toISOString()} — status ${res.statusCode}`);
+    }).on('error', (err) => {
+      console.warn(`[self-ping] failed: ${err.message}`);
+    });
+  }, 14 * 60 * 1000);
 });

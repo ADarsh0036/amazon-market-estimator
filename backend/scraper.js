@@ -97,8 +97,14 @@ async function scrapeAmazonBestSellers(amazonUrl) {
     // BSR rank — the item's position on the list is its rank
     const rank = i + 1;
 
+    // Image URL — try srcset first (higher quality), fall back to src/data-src
+    const imgEl = item.find('img').first();
+    const srcset = imgEl.attr('srcset') || '';
+    const srcsetUrl = srcset ? srcset.split(',').pop().trim().split(' ')[0] : '';
+    const image_url = srcsetUrl || imgEl.attr('src') || imgEl.attr('data-src') || '';
+
     if (name && name.length > 3) {
-      products.push({ rank, name, price, rating, reviewCount });
+      products.push({ rank, name, price, rating, reviewCount, image_url });
     }
   });
 

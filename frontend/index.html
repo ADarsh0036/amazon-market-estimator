@@ -408,9 +408,9 @@
       padding: 8px 16px; background: #fafafa;
       border-bottom: 1px solid var(--border);
     }
-    .heatmap-score { font-size: 12px; color: var(--muted); flex-shrink: 0; min-width: 70px; text-align: right; }
-    .difficulty-bar { height: 3px; background: #f0f0f2; border-radius: 2px; margin-top: 3px; width: 40px; margin-left: auto; }
-    .difficulty-fill { height: 100%; border-radius: 2px; }
+    .heatmap-score { font-size: 12px; color: var(--muted); flex-shrink: 0; min-width: 80px; text-align: right; }
+    .difficulty-bar { height: 6px; background: #f0f0f2; border-radius: 3px; margin-top: 3px; width: 80px; margin-left: auto; }
+    .difficulty-fill { height: 100%; border-radius: 3px; }
 
     /* ─── Disclaimer ─── */
     .disclaimer {
@@ -485,7 +485,7 @@
         </div>
         <div class="progress-step" id="pstep-3">
           <div class="step-circle pending" id="pcirc-3"></div>
-          <span class="step-text">Analyzing with Claude AI...</span>
+          <span class="step-text">Analyzing products with AI...</span>
         </div>
         <div class="progress-step" id="pstep-4">
           <div class="step-circle pending" id="pcirc-4"></div>
@@ -582,9 +582,8 @@
               <span style="width:10px;height:10px;flex-shrink:0"></span>
               <span style="flex:1;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted)">Product</span>
               <span style="flex-shrink:0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted)">Competition</span>
-              <span style="flex-shrink:0;min-width:70px;display:flex;align-items:center;justify-content:flex-end;gap:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted)">
+              <span style="flex-shrink:0;min-width:80px;display:flex;align-items:center;justify-content:flex-end;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted)">
                 Entry Difficulty
-                <span class="tooltip-icon tooltip-wide" data-tip="How hard is it to compete? Based on review count relative to other products in this market. 10 = hardest to enter.">ⓘ</span>
               </span>
               <span style="flex-shrink:0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted)">Opportunity</span>
             </div>
@@ -665,10 +664,16 @@
       return String(n);
     }
     function scoreColor(s) {
-      if (s <= 3) return '#22c55e';
-      if (s <= 6) return '#eab308';
-      if (s <= 8) return '#f97316';
-      return '#ef4444';
+      if (s <= 3) return '#10B981';
+      if (s <= 6) return '#FF9900';
+      return '#EF4444';
+    }
+    function difficultyLabel(s) {
+      if (s <= 2) return 'Very Easy';
+      if (s <= 4) return 'Easy';
+      if (s <= 6) return 'Moderate';
+      if (s <= 8) return 'Hard';
+      return 'Very Hard';
     }
     function stars(rating) {
       if (!rating) return '<span style="color:#ccc">—</span>';
@@ -828,8 +833,8 @@
             <span class="heatmap-product-name">${escHtml(truncate(p.name, 55))}</span>
             <span class="heatmap-level" style="color:${color}">${level}</span>
             <span class="heatmap-score">
-              <span style="display:block;font-weight:700;color:var(--text)">${score}/10</span>
               <div class="difficulty-bar"><div class="difficulty-fill" style="width:${score * 10}%;background:${barColor}"></div></div>
+              <span style="display:block;font-size:10px;color:${barColor};font-weight:600;margin-top:3px">${difficultyLabel(score)}</span>
             </span>
             <span class="opp-badge ${oppCls}">${oppLabel}</span>
           </div>

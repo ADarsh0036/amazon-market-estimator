@@ -117,13 +117,14 @@ function addDeepDiveData(products) {
   });
 }
 
-function computeRawGaps(products) {
+function computeRawGaps(products, currencySymbol = '$') {
+  const sym = currencySymbol;
   const buckets = [
-    { label: 'Under $15',  min: 0,   max: 15,       products: [] },
-    { label: '$15–$30',    min: 15,  max: 30,       products: [] },
-    { label: '$30–$60',    min: 30,  max: 60,       products: [] },
-    { label: '$60–$100',   min: 60,  max: 100,      products: [] },
-    { label: 'Over $100',  min: 100, max: Infinity, products: [] },
+    { label: `Under ${sym}15`,       min: 0,   max: 15,       products: [] },
+    { label: `${sym}15–${sym}30`,    min: 15,  max: 30,       products: [] },
+    { label: `${sym}30–${sym}60`,    min: 30,  max: 60,       products: [] },
+    { label: `${sym}60–${sym}100`,   min: 60,  max: 100,      products: [] },
+    { label: `Over ${sym}100`,       min: 100, max: Infinity, products: [] },
   ];
 
   products.forEach(p => {
@@ -160,11 +161,11 @@ function computeRawGaps(products) {
   return stats.sort((a, b) => b.gapScore - a.gapScore).slice(0, 2);
 }
 
-async function getGapInsights(gaps) {
+async function getGapInsights(gaps, currencySymbol = '$') {
   if (gaps.length === 0) return gaps;
 
   const gapDesc = gaps.map((g, i) =>
-    `Gap ${i + 1}: ${g.label} — ${g.count} product(s), avg monthly revenue $${Math.round(g.avgRevenue).toLocaleString()}, total reviews ${g.totalReviews.toLocaleString()}, entry difficulty: ${g.entry_difficulty}`
+    `Gap ${i + 1}: ${g.label} — ${g.count} product(s), avg monthly revenue ${currencySymbol}${Math.round(g.avgRevenue).toLocaleString()}, total reviews ${g.totalReviews.toLocaleString()}, entry difficulty: ${g.entry_difficulty}`
   ).join('\n');
 
   const message = await client.messages.create({
@@ -202,9 +203,10 @@ async function getGapInsights(gaps) {
   }));
 }
 
-async function getMarketSummary(products) {
+async function getMarketSummary(products, currencySymbol = '$') {
+  const sym = currencySymbol;
   const productList = products.map(p =>
-    `"${p.name.slice(0, 60)}" — $${p.price}, ${(p.reviewCount || 0).toLocaleString()} reviews, ~$${Math.round(p.estimated_monthly_revenue / 1000)}K/mo`
+    `"${p.name.slice(0, 60)}" — ${sym}${p.price}, ${(p.reviewCount || 0).toLocaleString()} reviews, ~${sym}${Math.round(p.estimated_monthly_revenue / 1000)}K/mo`
   ).join('\n');
 
   const message = await client.messages.create({
@@ -217,6 +219,7 @@ async function getMarketSummary(products) {
 2. Best price range to enter and why
 3. One specific recommendation for a new seller entering this market.
 Be specific, use the actual numbers, be direct.
+Always use ${sym} for all monetary values. Never use $ unless the currency is USD.
 
 Products:
 ${productList}
@@ -228,7 +231,7 @@ Return ONLY the 3 sentences as plain text, each on its own line. No numbering, n
   return message.content.filter(b => b.type === 'text').map(b => b.text).join('').trim();
 }
 
-async function analyzeProducts(products) {
+async function analyzeProducts(products, currency = { symbol: '$', code: 'USD' }) {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error('ANTHROPIC_API_KEY environment variable is not set.');
   }
@@ -278,10 +281,11 @@ async function analyzeProducts(products) {
   withCompetition.forEach(p => { p.opportunity_score = calcOpportunityScore(p); });
   const withDeepDive = addDeepDiveData(withCompetition);
 
-  const rawGaps = computeRawGaps(withDeepDive);
+  const currencySymbol = currency.symbol || '$';
+  const rawGaps = computeRawGaps(withDeepDive, currencySymbol);
   const [marketGaps, market_summary] = await Promise.all([
-    getGapInsights(rawGaps),
-    getMarketSummary(withDeepDive),
+    getGapInsights(rawGaps, currencySymbol),
+    getMarketSummary(withDeepDive, currencySymbol),
   ]);
 
   return { products: withDeepDive, marketGaps, market_summary };

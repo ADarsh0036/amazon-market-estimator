@@ -37,7 +37,7 @@ app.post('/api/analyze', async (req, res) => {
     console.log(`  → Found ${products.length} products (${currency.code})`);
 
     console.log(`[${new Date().toISOString()}] Sending to Claude for analysis...`);
-    const result = await analyzeProducts(products);
+    const result = await analyzeProducts(products, currency);
     console.log(`  → Analysis complete`);
 
     const { products: analyzed, marketGaps, market_summary } = result;
